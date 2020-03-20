@@ -16,6 +16,17 @@ var octets = {
                  0xDF,0xFF]
 };
 
+function createViewWithBuffer(type, length) {
+  if (type === "ArrayBuffer") {
+    return new Uint8Array(new ArrayBuffer(length));
+  } else {
+    // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+    // WebAssembly.Memory's size is in multiples of 64 KiB
+    const buffer = new WebAssembly.Memory({ shared:true, initial:1, maximum:1 }).buffer;
+    return new Uint8Array(buffer, 0, length);
+  }
+}
+
 ["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
     Object.keys(octets).forEach(function(encoding) {
         for (var len = 1; len <= 5; ++len) {
@@ -28,7 +39,7 @@ var octets = {
                     var sub = [];
                     for (var j = i; j < encoded.length && j < i + len; ++j)
                         sub.push(encoded[j]);
-                        var uintArray = new Uint8Array(new self[arrayBufferOrSharedArrayBuffer](sub.length));
+                        var uintArray = createViewWithBuffer(arrayBufferOrSharedArrayBuffer, sub.length);
                         uintArray.set(sub);
                     out += decoder.decode(uintArray, {stream: true});
                 }

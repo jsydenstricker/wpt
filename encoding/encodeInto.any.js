@@ -1,3 +1,21 @@
+function createBuffer(type, length = 0) {
+  if (type === "ArrayBuffer") {
+    return new ArrayBuffer(length);
+  } else {
+    // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+    // WebAssembly.Memory's size is in multiples of 64 KiB
+    return new WebAssembly.Memory({ shared:true, initial:1, maximum:1 }).buffer;
+  }
+}
+
+function createViewWithBuffer(type, length) {
+  if (type === "ArrayBuffer") {
+    return new Uint8Array(new ArrayBuffer(length));
+  } else {
+    return new Uint8Array(createBuffer(type), 0, length);
+  }
+}
+
 [
   {
     "input": "Hi",
@@ -77,15 +95,15 @@
     ["ArrayBuffer", "SharedArrayBuffer"].forEach(arrayBufferOrSharedArrayBuffer => {
       test(() => {
         // Setup
-        const bufferLength = testData.destinationLength + destinationData.bufferIncrease,
-              destinationOffset = destinationData.destinationOffset,
-              destinationLength = testData.destinationLength,
-              destinationFiller = destinationData.filler,
-              encoder = new TextEncoder(),
-              buffer = new self[arrayBufferOrSharedArrayBuffer](bufferLength),
-              view = new Uint8Array(buffer, destinationOffset, destinationLength),
-              fullView = new Uint8Array(buffer),
-              control = new Array(bufferLength);
+        const bufferLength = testData.destinationLength + destinationData.bufferIncrease;
+        const destinationOffset = destinationData.destinationOffset;
+        const destinationLength = testData.destinationLength;
+        const destinationFiller = destinationData.filler;
+        const encoder = new TextEncoder();
+        const buffer = createBuffer(arrayBufferOrSharedArrayBuffer, bufferLength);
+        const view = new Uint8Array(buffer, destinationOffset, destinationLength);
+        const fullView = new Uint8Array(buffer);
+        const control = new Array(bufferLength);
         let byte = destinationFiller;
         for (let i = 0; i < bufferLength; i++) {
           if (destinationFiller === "random") {
@@ -105,6 +123,8 @@
         // Remainder
         assert_equals(result.read, testData.read);
         assert_equals(result.written, testData.written.length);
+        // This will not check the entire buffer allocated by WebAssembly.Memory, but we'll trust
+        // that this is sufficient.
         for (let i = 0; i < bufferLength; i++) {
           if (i < destinationOffset || i >= (destinationOffset + testData.written.length)) {
             assert_equals(fullView[i], control[i]);
@@ -128,18 +148,16 @@
  Float64Array].forEach(view => {
   ["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
     test(() => {
-      assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", new view(new self[arrayBufferOrSharedArrayBuffer](0))));
+      assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", createViewWithBuffer(arrayBufferOrSharedArrayBuffer, 0)));
     }, "Invalid encodeInto() destination: " + view.name + ", backed by: " + arrayBufferOrSharedArrayBuffer);
   });
 });
 
 ["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
   test(() => {
-    assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", new self[arrayBufferOrSharedArrayBuffer](10)));
+    assert_throws_js(TypeError, () => new TextEncoder().encodeInto("", createBuffer(arrayBufferOrSharedArrayBuffer, 10)));
   }, "Invalid encodeInto() destination: " + arrayBufferOrSharedArrayBuffer);
 });
-
-
 
 test(() => {
   const buffer = new ArrayBuffer(10),

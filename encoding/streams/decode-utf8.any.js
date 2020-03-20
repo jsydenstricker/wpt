@@ -5,11 +5,22 @@
 'use strict';
 
 ["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
-  const inputChunkData = [73, 32, 240, 159, 146, 153, 32, 115, 116,
-                          114, 101, 97, 109, 115]
+  const inputChunkData = [73, 32, 240, 159, 146, 153, 32, 115, 116, 114, 101, 97, 109, 115];
 
-  const emptyChunk = new Uint8Array(new self[arrayBufferOrSharedArrayBuffer](0));
-  const inputChunk = new Uint8Array(new self[arrayBufferOrSharedArrayBuffer](inputChunkData.length));
+  function createViewWithBuffer(type, length) {
+    if (type === "ArrayBuffer") {
+      return new Uint8Array(new ArrayBuffer(length));
+    } else {
+      // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+      // WebAssembly.Memory's size is in multiples of 64 KiB
+      const size = (length === 0) ? 0 : 1;
+      const buffer = new WebAssembly.Memory({ shared:true, initial:size, maximum:size }).buffer;
+      return new Uint8Array(buffer, 0, length);
+    }
+  }
+
+  const emptyChunk = createViewWithBuffer(arrayBufferOrSharedArrayBuffer, 0);
+  const inputChunk = createViewWithBuffer(arrayBufferOrSharedArrayBuffer, inputChunkData.length);
 
   inputChunk.set(inputChunkData);
 
