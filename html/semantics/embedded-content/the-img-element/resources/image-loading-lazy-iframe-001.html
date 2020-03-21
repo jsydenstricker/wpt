@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <div style="height:1000vh;"></div>
+
+<!-- This frame is used by image-loading-lazy-in-cross-origin-iframe-001.sub.html -->
+
 <img id="img" loading="lazy" src="image.png">
+
 <script>
+  const img = document.querySelector('#img');
+
   img.addEventListener("load", () => {
     parent.postMessage("image_loaded", "*");
   });
